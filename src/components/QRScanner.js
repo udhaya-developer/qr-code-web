@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { AlertTriangle, CheckCircle, Loader2, RefreshCw, XCircle } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { AlertTriangle, CheckCircle, Loader2, RefreshCw, XCircle, User, Mail, Phone, Users, Ticket, Calendar, ShieldCheck, CameraOff, Camera, Image as ImageIcon, FlipHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function fmtWhen(iso) {
@@ -21,40 +21,80 @@ function AttendeeDetails({ attendee }) {
   const ticketLabel =
     attendee.ticketNumber != null ? `#${attendee.ticketNumber}` : '—';
 
-  const rows = [
-    ['Full name', attendee.fullName],
-    ['Email', attendee.email],
-    ['Phone', attendee.phone],
-    ['Squad', attendee.squad],
-    ['Referred by', attendee.referredBy],
-    ['Ticket', ticketLabel],
-    ['Registration ID', attendee.registrationId],
-    ['Registered', fmtWhen(attendee.createdAt)],
-    [
-      'Check-in',
-      attendee.checkedIn
-        ? `Yes · ${fmtWhen(attendee.checkedInAt)}`
-        : 'No',
-    ],
+  const items = [
+    { label: 'Full name', value: attendee.fullName, icon: User },
+    { label: 'Email', value: attendee.email, icon: Mail },
+    { label: 'Phone', value: attendee.phone, icon: Phone },
+    { label: 'Squad', value: attendee.squad, icon: Users },
+    { label: 'Ticket', value: ticketLabel, icon: Ticket },
+    { label: 'Registered', value: fmtWhen(attendee.createdAt), icon: Calendar },
   ];
 
   return (
-    <dl className="scan-details">
-      {rows.map(([label, value]) => (
-        <div key={label} className="scan-detail-row">
-          <dt>{label}</dt>
-          <dd>{value || '—'}</dd>
-        </div>
+    <div className="attendee-grid">
+      {items.map((item, idx) => (
+        <motion.div 
+          key={item.label} 
+          className="attendee-item"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: idx * 0.05 }}
+        >
+          <div className="item-icon">
+            <item.icon size={14} />
+          </div>
+          <div className="item-content">
+            <span className="item-label">{item.label}</span>
+            <span className="item-value">{item.value || '—'}</span>
+          </div>
+        </motion.div>
       ))}
-    </dl>
+      <motion.div 
+        className={`attendee-item full-width ${attendee.checkedIn ? 'checked-in' : 'not-checked-in'}`}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="item-icon">
+          <ShieldCheck size={14} />
+        </div>
+        <div className="item-content">
+          <span className="item-label">Access Status</span>
+          <span className="item-value">
+            {attendee.checkedIn
+              ? `Checked-in at ${fmtWhen(attendee.checkedInAt)}`
+              : 'Pending Check-in'}
+          </span>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
 export default function QRScanner() {
   const [panel, setPanel] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [facingMode, setFacingMode] = useState("environment");
+  
+  const scannerRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const isTransitioning = useRef(false);
+  const mountRef = useRef(true);
 
   const handleScan = useCallback(async (scanned) => {
+    if (scannerRef.current) {
+      try {
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+      } catch (e) {
+        // ignore
+      }
+      setIsCameraActive(false);
+    }
+
     setLoading(true);
     setPanel(null);
     try {
@@ -87,251 +127,357 @@ export default function QRScanner() {
     }
   }, []);
 
+  const startCamera = useCallback(async (mode = facingMode) => {
+    if (!mountRef.current || isTransitioning.current) return;
+    
+    let element = document.getElementById("reader");
+    if (!element) {
+      setTimeout(() => startCamera(mode), 300);
+      return;
+    }
+
+    try {
+      isTransitioning.current = true;
+      setCameraError(null);
+      
+      if (scannerRef.current) {
+        try {
+          if (scannerRef.current.isScanning) {
+            await scannerRef.current.stop();
+          }
+        } catch (e) {}
+      }
+
+      const html5QrCode = new Html5Qrcode("reader");
+      scannerRef.current = html5QrCode;
+
+      await html5QrCode.start(
+        { facingMode: mode },
+        {
+          fps: 25,
+          qrbox: (w, h) => {
+            const size = Math.max(Math.floor(Math.min(w, h) * 0.7), 250);
+            return { width: size, height: size };
+          }
+        },
+        (text) => handleScan(text),
+        () => {}
+      );
+      
+      if (mountRef.current) {
+        setIsCameraActive(true);
+      }
+    } catch (err) {
+      const msg = err.toString().toLowerCase();
+      if (!msg.includes("transition") && !msg.includes("state")) {
+        setCameraError("Camera access failed. Check permissions.");
+      }
+    } finally {
+      isTransitioning.current = false;
+    }
+  }, [handleScan, facingMode]);
+
   useEffect(() => {
-    const scanner = new Html5QrcodeScanner('reader', {
-      fps: 10,
-      qrbox: { width: 250, height: 250 },
-    });
-
-    scanner.render(
-      (decodedText) => {
-        handleScan(decodedText);
-        scanner.clear();
-      },
-      () => {}
-    );
-
+    mountRef.current = true;
+    const timer = setTimeout(() => startCamera(), 800);
     return () => {
-      scanner.clear().catch(() => {});
+      mountRef.current = false;
+      clearTimeout(timer);
+      if (scannerRef.current?.isScanning) {
+        scannerRef.current.stop().catch(() => {});
+      }
     };
-  }, [handleScan]);
+  }, [startCamera]);
 
-  const resetScanner = () => {
-    setPanel(null);
-    window.location.reload();
+  const toggleCamera = () => {
+    if (isTransitioning.current) return;
+    const newMode = facingMode === "environment" ? "user" : "environment";
+    setFacingMode(newMode);
+    startCamera(newMode);
   };
 
-  const showCamera = !loading && !panel;
+  const handleGalleryUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLoading(true);
+    try {
+      const qr = new Html5Qrcode("reader");
+      const text = await qr.scanFile(file, true);
+      handleScan(text);
+    } catch (err) {
+      setPanel({ type: 'error', message: 'No QR code found' });
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="scanner-container">
       <AnimatePresence mode="wait">
-        {showCamera && (
+        {!loading && !panel && (
           <motion.div
-            key="reader-view"
+            key="scanner"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            id="reader"
-            className="glass-card"
-          />
+            className="scanner-box"
+          >
+            <div id="reader" />
+            
+            {cameraError ? (
+              <div className="camera-error-overlay">
+                <CameraOff size={48} />
+                <p>{cameraError}</p>
+                <button onClick={() => startCamera()} className="retry-btn">Retry</button>
+              </div>
+            ) : (
+              <div className="scanner-overlay">
+                <div className="viewfinder-guide">
+                  <div className="scan-corner top-left" />
+                  <div className="scan-corner top-right" />
+                  <div className="scan-corner bottom-left" />
+                  <div className="scan-corner bottom-right" />
+                  <div className="scan-line" />
+                </div>
+                {!isCameraActive && (
+                  <div className="camera-loading">
+                    <Loader2 className="spinner" size={32} />
+                    <span>Initializing...</span>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {isCameraActive && <p className="scanner-hint">Align QR code within the frame</p>}
+
+            <div className="scanner-controls">
+              <button onClick={toggleCamera} className="control-btn" disabled={isTransitioning.current}>
+                <FlipHorizontal size={20} />
+                <span>Switch</span>
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="control-btn">
+                <ImageIcon size={20} />
+                <span>Gallery</span>
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handleGalleryUpload} accept="image/*" style={{ display: 'none' }} />
+            </div>
+          </motion.div>
         )}
 
         {loading && (
-          <motion.div
-            key="loading"
-            className="glass-card loading-card"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <Loader2 className="spinner" size={48} />
-            <h3>Loading attendee…</h3>
+          <motion.div key="loading" className="glass-card result-card loading-state">
+            <Loader2 className="spinner" size={32} />
+            <h3>Verifying...</h3>
           </motion.div>
         )}
 
         {panel?.type === 'success' && (
-          <motion.div
-            key="success"
-            className="glass-card success-card scan-result-card"
-            initial={{ scale: 0.96, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-          >
-            <CheckCircle className="status-icon success" size={48} />
-            <h2 className="status-title">Access granted</h2>
-            <p className="scan-result-sub">Check-in recorded. Attendee details:</p>
+          <motion.div key="success" className="glass-card result-card success-state">
+            <div className="status-header">
+              <CheckCircle size={28} color="#22c55e" />
+              <h2 className="status-title">Access Granted</h2>
+            </div>
             <AttendeeDetails attendee={panel.attendee} />
-            <button type="button" onClick={resetScanner} className="submit-btn scanner-action-btn">
-              <RefreshCw size={20} /> Scan next
-            </button>
+            <button onClick={() => { setPanel(null); startCamera(); }} className="primary-cta-btn scanner-btn">Next Scan</button>
           </motion.div>
         )}
 
         {panel?.type === 'warning' && (
-          <motion.div
-            key="warning"
-            className="glass-card warning-card scan-result-card"
-            initial={{ scale: 0.96, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-          >
-            <AlertTriangle className="status-icon warning" size={48} />
-            <h2 className="status-title">{panel.message}</h2>
-            <p className="scan-result-sub">Profile on file:</p>
+          <motion.div key="warning" className="glass-card result-card warning-state">
+            <div className="status-header">
+              <AlertTriangle size={28} color="#eab308" />
+              <h2 className="status-title">Duplicate Entry</h2>
+            </div>
             <AttendeeDetails attendee={panel.attendee} />
-            <button type="button" onClick={resetScanner} className="submit-btn scanner-action-btn warning-btn">
-              <RefreshCw size={20} /> Scan next
-            </button>
+            <button onClick={() => { setPanel(null); startCamera(); }} className="secondary-cta-btn scanner-btn">Resume</button>
           </motion.div>
         )}
 
         {panel?.type === 'error' && (
-          <motion.div
-            key="error"
-            className="glass-card error-card scan-result-card"
-            initial={{ scale: 0.96, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-          >
-            <XCircle className="status-icon error" size={48} />
-            <h2 className="status-title">Not verified</h2>
-            <p className="error-message">{panel.message}</p>
-            <button type="button" onClick={resetScanner} className="submit-btn scanner-action-btn error-btn">
-              <RefreshCw size={20} /> Try again
-            </button>
+          <motion.div key="error" className="glass-card result-card error-state">
+            <XCircle size={40} color="#ef4444" />
+            <h2 className="status-title">Access Denied</h2>
+            <p>{panel.message}</p>
+            <button onClick={() => { setPanel(null); startCamera(); }} className="primary-cta-btn scanner-btn">Try Again</button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <style jsx>{`
+      <style jsx global>{`
         .scanner-container {
           width: 100%;
-          max-width: 520px;
-          margin: 0 auto;
-        }
-        .loading-card {
+          flex: 1;
           display: flex;
           flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 2.5rem;
-          text-align: center;
-          gap: 0.75rem;
+          position: relative;
+          min-height: 0;
         }
-        .spinner {
-          color: #fbb03b;
-          margin-bottom: 0.5rem;
-          animation: spin 1s linear infinite;
+        .scanner-box {
+          position: relative;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          background: #000;
+          border-radius: 0;
+          overflow: hidden;
+          border: 1px solid rgba(202, 35, 255, 0.3);
+          box-shadow: 0 0 20px rgba(202, 35, 255, 0.05);
         }
         #reader {
+          width: 100% !important;
+          height: 100% !important;
+          flex: 1 !important;
+          background: #000 !important;
           border: none !important;
-          padding: 0 !important;
-          overflow: hidden;
         }
-        .scan-result-card {
-          text-align: left;
-          border-width: 1px;
-          padding: 1.5rem 1.35rem 1.75rem;
+        #reader video {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+          display: block !important;
         }
-        .success-card {
-          border-color: #22c55e !important;
-          box-shadow: 0 0 30px rgba(34, 197, 94, 0.15);
+        #reader__scan_region {
+          width: 100% !important;
+          height: 100% !important;
+          display: block !important;
         }
-        .warning-card {
-          border-color: #eab308 !important;
-          box-shadow: 0 0 28px rgba(234, 179, 8, 0.18);
+        #reader__scan_region video {
+          display: block !important;
+          opacity: 1 !important;
+          visibility: visible !important;
         }
-        .error-card {
-          text-align: center;
-          border-color: #ef4444 !important;
-          box-shadow: 0 0 30px rgba(239, 68, 68, 0.2);
+        #reader__scan_region > div {
+          display: none !important;
         }
-        .status-icon {
-          margin: 0 auto 0.75rem;
-          display: block;
+        #reader__scan_region canvas {
+          display: none !important;
         }
-        .status-icon.success {
-          color: #22c55e;
+        #reader [id*="qr-shaded-region"] {
+          display: none !important;
         }
-        .status-icon.warning {
-          color: #eab308;
-        }
-        .status-icon.error {
-          color: #ef4444;
-        }
-        .status-title {
-          font-size: 1.45rem;
-          font-weight: 800;
-          margin-bottom: 0.35rem;
-          text-align: center;
-        }
-        .scan-result-sub {
-          color: rgba(255, 255, 255, 0.55);
-          font-size: 0.85rem;
-          margin-bottom: 1rem;
-          text-align: center;
-        }
-        .scan-details {
-          margin: 0;
-          padding: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 0.65rem;
-        }
-        .scan-detail-row {
-          display: grid;
-          grid-template-columns: 8.5rem 1fr;
-          gap: 0.65rem 1rem;
-          align-items: start;
-          font-size: 0.9rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-          padding-bottom: 0.55rem;
-        }
-        .scan-detail-row:last-child {
-          border-bottom: none;
-          padding-bottom: 0;
-        }
-        .scan-detail-row dt {
-          margin: 0;
-          color: rgba(255, 255, 255, 0.45);
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-          font-size: 0.72rem;
-        }
-        .scan-detail-row dd {
-          margin: 0;
-          color: rgba(255, 255, 255, 0.92);
-          word-break: break-word;
-        }
-        .error-message {
-          color: #f87171;
-          font-size: 1.05rem;
-          margin-bottom: 1rem;
-        }
-        .scanner-action-btn {
-          margin-top: 1.35rem;
+        #reader img { display: none !important; }
+        
+        .scanner-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 10;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 0.5rem;
+          pointer-events: none;
+        }
+        .viewfinder-guide {
+          position: relative;
+          width: 280px;
+          height: 280px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.65);
+          border-radius: 20px;
+          z-index: 5;
+        }
+        .camera-loading {
+          position: absolute;
+          top: 0;
+          left: 0;
           width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 1.5rem;
+          background: #000;
+          color: rgba(255,255,255,0.7);
+          z-index: 30;
         }
-        .error-btn {
-          background: rgba(127, 29, 29, 0.25);
-          color: #fca5a5;
-          border: 1px solid #ef4444;
+        .scan-corner {
+          position: absolute;
+          width: 48px;
+          height: 48px;
+          border: 4px solid rgba(202, 35, 255, 1);
+          filter: drop-shadow(0 0 12px rgba(202, 35, 255, 0.4));
+          z-index: 2;
         }
-        .error-btn:hover {
-          background: #ef4444;
-          color: #fff;
+        .top-left { top: -2px; left: -2px; border-right: none; border-bottom: none; border-radius: 16px 0 0 0; }
+        .top-right { top: -2px; right: -2px; border-left: none; border-bottom: none; border-radius: 0 16px 0 0; }
+        .bottom-left { bottom: -2px; left: -2px; border-right: none; border-top: none; border-radius: 0 0 0 16px; }
+        .bottom-right { bottom: -2px; right: -2px; border-left: none; border-top: none; border-radius: 0 0 16px 0; }
+        
+        .scan-line {
+          position: absolute;
+          top: 10%;
+          left: 5%;
+          right: 5%;
+          height: 2px;
+          background: var(--primary);
+          box-shadow: 0 0 20px var(--primary);
+          animation: scan 2.5s infinite;
         }
-        .warning-btn {
-          background: rgba(113, 63, 18, 0.35);
-          color: #fde047;
-          border: 1px solid rgba(234, 179, 8, 0.7);
+        
+        .scanner-hint {
+          position: absolute;
+          bottom: 120px;
+          width: 100%;
+          text-align: center;
+          color: white;
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 0.75rem;
+          letter-spacing: 0.05em;
+          z-index: 15;
+          opacity: 0.8;
         }
-        .warning-btn:hover {
-          background: rgba(234, 179, 8, 0.25);
-          color: #fff;
+        
+        .scanner-controls {
+          position: absolute;
+          bottom: 24px;
+          left: 0;
+          right: 0;
+          display: flex;
+          justify-content: center;
+          gap: 1rem;
+          z-index: 20;
+          padding: 0 1rem;
         }
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
+        
+        .control-btn {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.8rem 1.2rem;
+          background: rgba(255,255,255,0.1) !important;
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255,255,255,0.1) !important;
+          border-radius: 16px;
+          color: white !important;
+          cursor: pointer;
+          min-width: 90px;
+          transition: all 0.2s;
         }
-        @media (max-width: 520px) {
-          .scan-detail-row {
-            grid-template-columns: 1fr;
-            gap: 0.2rem;
-          }
+        .control-btn:hover { background: rgba(255,255,255,0.2) !important; }
+        .control-btn span { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; }
+        
+        .result-card {
+          padding: 1.5rem;
+          border-radius: 24px;
+          text-align: center;
+        }
+        .status-header { display: flex; align-items: center; gap: 1rem; justify-content: center; margin-bottom: 1rem; }
+        
+        .attendee-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 1rem 0; text-align: left; }
+        .attendee-item { background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 12px; }
+        .item-label { font-size: 0.6rem; color: rgba(255,255,255,0.4); text-transform: uppercase; display: block; }
+        .item-value { font-size: 0.8rem; font-weight: 600; color: white; }
+        .full-width { grid-column: span 2; }
+        
+        @keyframes scan {
+          0%, 100% { top: 10%; }
+          50% { top: 90%; }
         }
       `}</style>
     </div>
