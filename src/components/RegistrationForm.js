@@ -36,6 +36,14 @@ export default function RegistrationForm({ onRegistered }) {
         throw new Error(data.message || 'Something went wrong');
       }
 
+      if (data.message && data.message.includes('demo mode')) {
+        setError(
+          'Saved locally only: MongoDB was not reached (demo mode). Check Atlas IP access and MONGODB_URI in .env.local.'
+        );
+        onRegistered(data.data);
+        return;
+      }
+
       confetti({
         particleCount: 100,
         spread: 70,

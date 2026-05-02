@@ -21,6 +21,19 @@ export async function POST(req) {
 
       return NextResponse.json({ success: true, data: attendee }, { status: 201 });
     } catch (dbError) {
+      if (dbError.code === 11000) {
+        return NextResponse.json(
+          { success: false, message: 'Email already registered.' },
+          { status: 400 }
+        );
+      }
+      if (dbError.name === 'ValidationError') {
+        return NextResponse.json(
+          { success: false, message: dbError.message },
+          { status: 400 }
+        );
+      }
+
       console.warn('MongoDB connection failed, falling back to Mock mode:', dbError.message);
 
       const ticketNumber = getNextMockTicketNumber();
