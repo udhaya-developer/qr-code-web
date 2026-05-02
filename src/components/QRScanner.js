@@ -227,19 +227,23 @@ function AttendeeDetails({ attendee }) {
           justify-content: space-between;
           align-items: center;
           flex: 1;
-        }
-        .item-label {
-          font-size: 0.65rem;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: rgba(255, 255, 255, 0.3);
-          font-weight: 800;
+          gap: 1rem;
         }
         .item-value {
-          font-size: 0.85rem;
+          font-size: 1rem;
+          font-weight: 800;
+          color: white;
+          text-align: left;
+          flex: 1;
+        }
+        .item-label {
+          font-size: 0.6rem;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          color: rgba(255, 255, 255, 0.4);
           font-weight: 700;
-          color: rgba(255, 255, 255, 0.9);
           text-align: right;
+          flex-shrink: 0;
         }
 
         /* Status Footer */
