@@ -2,7 +2,27 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { AlertTriangle, CheckCircle, Loader2, RefreshCw, XCircle, User, Mail, Phone, Users, Ticket, Calendar, ShieldCheck, CameraOff, Camera, Image as ImageIcon, FlipHorizontal } from 'lucide-react';
+import { 
+  AlertTriangle, 
+  CheckCircle, 
+  Loader2, 
+  RefreshCw, 
+  XCircle, 
+  User, 
+  Mail, 
+  Phone, 
+  Users, 
+  Ticket, 
+  Calendar, 
+  ShieldCheck, 
+  CameraOff, 
+  Camera, 
+  Image as ImageIcon, 
+  FlipHorizontal,
+  ChevronRight,
+  Fingerprint,
+  Activity
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function fmtWhen(iso) {
@@ -18,55 +38,263 @@ function fmtWhen(iso) {
 }
 
 function AttendeeDetails({ attendee }) {
-  const ticketLabel =
-    attendee.ticketNumber != null ? `#${attendee.ticketNumber}` : '—';
+  const ticketLabel = attendee.ticketNumber != null ? `#${attendee.ticketNumber}` : '—';
 
-  const items = [
-    { label: 'Full name', value: attendee.fullName, icon: User },
-    { label: 'Email', value: attendee.email, icon: Mail },
-    { label: 'Phone', value: attendee.phone, icon: Phone },
+  const secondaryItems = [
     { label: 'Squad', value: attendee.squad, icon: Users },
+    { label: 'Phone', value: attendee.phone, icon: Phone },
     { label: 'Ticket', value: ticketLabel, icon: Ticket },
     { label: 'Registered', value: fmtWhen(attendee.createdAt), icon: Calendar },
   ];
 
   return (
-    <div className="attendee-grid">
-      {items.map((item, idx) => (
-        <motion.div 
-          key={item.label} 
-          className="attendee-item"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: idx * 0.05 }}
-        >
-          <div className="item-icon">
-            <item.icon size={14} />
-          </div>
-          <div className="item-content">
-            <span className="item-label">{item.label}</span>
-            <span className="item-value">{item.value || '—'}</span>
-          </div>
-        </motion.div>
-      ))}
+    <div className="advanced-details">
+      {/* Profile Section */}
       <motion.div 
-        className={`attendee-item full-width ${attendee.checkedIn ? 'checked-in' : 'not-checked-in'}`}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        className="profile-section"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
       >
-        <div className="item-icon">
-          <ShieldCheck size={14} />
+        <div className="profile-avatar">
+          <User size={32} />
+          <div className="avatar-pulse" />
         </div>
-        <div className="item-content">
-          <span className="item-label">Access Status</span>
-          <span className="item-value">
-            {attendee.checkedIn
-              ? `Checked-in at ${fmtWhen(attendee.checkedInAt)}`
-              : 'Pending Check-in'}
-          </span>
+        <div className="profile-info">
+          <h3 className="profile-name">{attendee.fullName || 'Anonymous Participant'}</h3>
+          <p className="profile-email">{attendee.email || 'No email provided'}</p>
+        </div>
+        <div className="profile-badge">
+          <Fingerprint size={14} />
+          <span>{attendee.registrationId || 'PENDING'}</span>
         </div>
       </motion.div>
+
+      {/* Stats Grid */}
+      <div className="details-bento-grid">
+        {secondaryItems.map((item, idx) => (
+          <motion.div 
+            key={item.label} 
+            className="bento-item"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 + idx * 0.05 }}
+          >
+            <div className="item-icon-box">
+              <item.icon size={16} />
+            </div>
+            <div className="item-text">
+              <span className="item-label">{item.label}</span>
+              <span className="item-value">{item.value || '—'}</span>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Status Footer */}
+      <motion.div 
+        className={`status-footer ${attendee.checkedIn ? 'is-active' : 'is-pending'}`}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        <div className="status-indicator">
+          <Activity size={14} className="activity-icon" />
+          <span>{attendee.checkedIn ? 'Verification Synchronized' : 'Access Authorization Pending'}</span>
+        </div>
+        <p className="status-timestamp">
+          {attendee.checkedIn 
+            ? `Verified at ${fmtWhen(attendee.checkedInAt)}` 
+            : 'Awaiting entry checkpoint scan'}
+        </p>
+      </motion.div>
+
+      <style jsx>{`
+        .advanced-details {
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+          width: 100%;
+          text-align: left;
+        }
+
+        /* Profile Section */
+        .profile-section {
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 24px;
+          padding: 1.25rem;
+          display: flex;
+          align-items: center;
+          gap: 1.25rem;
+          position: relative;
+          overflow: hidden;
+        }
+        .profile-avatar {
+          width: 60px;
+          height: 60px;
+          background: linear-gradient(135deg, var(--primary), #ca23ff);
+          border-radius: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          position: relative;
+          flex-shrink: 0;
+        }
+        .avatar-pulse {
+          position: absolute;
+          inset: -4px;
+          border-radius: 22px;
+          border: 2px solid var(--primary);
+          opacity: 0.3;
+          animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        .profile-info {
+          flex: 1;
+          min-width: 0;
+        }
+        .profile-name {
+          font-size: 1.15rem;
+          font-weight: 800;
+          color: white;
+          margin: 0;
+          letter-spacing: -0.01em;
+        }
+        .profile-email {
+          font-size: 0.85rem;
+          color: rgba(255, 255, 255, 0.4);
+          margin: 0.1rem 0 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .profile-badge {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 4px 10px;
+          border-radius: 100px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          color: rgba(255, 255, 255, 0.5);
+          font-size: 0.65rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+        }
+
+        /* Bento Grid */
+        .details-bento-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.75rem;
+        }
+        .bento-item {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 20px;
+          padding: 1rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          transition: all 0.3s ease;
+        }
+        .item-icon-box {
+          width: 32px;
+          height: 32px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--primary);
+        }
+        .item-text {
+          display: flex;
+          flex-direction: column;
+          gap: 0.1rem;
+        }
+        .item-label {
+          font-size: 0.65rem;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: rgba(255, 255, 255, 0.3);
+          font-weight: 800;
+        }
+        .item-value {
+          font-size: 0.9rem;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Status Footer */
+        .status-footer {
+          padding: 1rem 1.25rem;
+          border-radius: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          border: 1px solid transparent;
+        }
+        .status-footer.is-active {
+          background: rgba(34, 197, 94, 0.05);
+          border-color: rgba(34, 197, 94, 0.1);
+        }
+        .status-footer.is-pending {
+          background: rgba(234, 179, 8, 0.05);
+          border-color: rgba(234, 179, 8, 0.1);
+        }
+        .status-indicator {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.75rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.02em;
+        }
+        .is-active .status-indicator { color: #22c55e; }
+        .is-pending .status-indicator { color: #eab308; }
+        .activity-icon {
+          animation: pulse-slow 2s infinite;
+        }
+        .status-timestamp {
+          font-size: 0.75rem;
+          color: rgba(255, 255, 255, 0.4);
+          margin: 0;
+        }
+
+        @keyframes ping {
+          75%, 100% {
+            transform: scale(1.1);
+            opacity: 0;
+          }
+        }
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+
+        @media (max-width: 420px) {
+          .details-bento-grid {
+            grid-template-columns: 1fr;
+          }
+          .profile-section {
+            padding: 1rem;
+            gap: 1rem;
+          }
+          .profile-avatar {
+            width: 50px;
+            height: 50px;
+          }
+          .profile-name {
+            font-size: 1rem;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -89,9 +317,7 @@ export default function QRScanner() {
         if (scannerRef.current.isScanning) {
           await scannerRef.current.stop();
         }
-      } catch (e) {
-        // ignore
-      }
+      } catch (e) {}
       setIsCameraActive(false);
     }
 
@@ -241,7 +467,7 @@ export default function QRScanner() {
                 {!isCameraActive && (
                   <div className="camera-loading">
                     <Loader2 className="spinner" size={32} />
-                    <span>Initializing...</span>
+                    <span>Initializing Security Layer...</span>
                   </div>
                 )}
               </div>
@@ -264,40 +490,106 @@ export default function QRScanner() {
         )}
 
         {loading && (
-          <motion.div key="loading" className="glass-card result-card loading-state">
-            <Loader2 className="spinner" size={32} />
-            <h3>Verifying...</h3>
+          <motion.div 
+            key="loading" 
+            className="glass-card result-card loading-state"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.1 }}
+          >
+            <div className="loading-container">
+              <Loader2 className="spinner" size={48} />
+              <div className="loader-orbit" />
+            </div>
+            <h3>Verifying Identity</h3>
+            <p>Processing decentralized scan record...</p>
           </motion.div>
         )}
 
         {panel?.type === 'success' && (
-          <motion.div key="success" className="glass-card result-card success-state">
-            <div className="status-header">
-              <CheckCircle size={28} color="#22c55e" />
-              <h2 className="status-title">Access Granted</h2>
+          <motion.div 
+            key="success" 
+            className="glass-card result-card success-panel"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="status-hero success">
+              <div className="hero-icon-wrap">
+                <CheckCircle size={40} />
+              </div>
+              <div className="hero-text">
+                <h2 className="status-title">Access Authorized</h2>
+                <p className="status-subtitle">Participant Verified Successfully</p>
+              </div>
             </div>
+            
             <AttendeeDetails attendee={panel.attendee} />
-            <button onClick={() => { setPanel(null); startCamera(); }} className="primary-cta-btn scanner-btn">Next Scan</button>
+            
+            <button 
+              onClick={() => { setPanel(null); startCamera(); }} 
+              className="action-button success-btn"
+            >
+              <span>Ready for Next Entry</span>
+              <ChevronRight size={18} />
+            </button>
           </motion.div>
         )}
 
         {panel?.type === 'warning' && (
-          <motion.div key="warning" className="glass-card result-card warning-state">
-            <div className="status-header">
-              <AlertTriangle size={28} color="#eab308" />
-              <h2 className="status-title">Duplicate Entry</h2>
+          <motion.div 
+            key="warning" 
+            className="glass-card result-card warning-panel"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="status-hero warning">
+              <div className="hero-icon-wrap">
+                <AlertTriangle size={40} />
+              </div>
+              <div className="hero-text">
+                <h2 className="status-title">Duplicate Entry</h2>
+                <p className="status-subtitle">{panel.message}</p>
+              </div>
             </div>
+            
             <AttendeeDetails attendee={panel.attendee} />
-            <button onClick={() => { setPanel(null); startCamera(); }} className="secondary-cta-btn scanner-btn">Resume</button>
+            
+            <button 
+              onClick={() => { setPanel(null); startCamera(); }} 
+              className="action-button warning-btn"
+            >
+              <span>Acknowledge & Continue</span>
+              <ChevronRight size={18} />
+            </button>
           </motion.div>
         )}
 
         {panel?.type === 'error' && (
-          <motion.div key="error" className="glass-card result-card error-state">
-            <XCircle size={40} color="#ef4444" />
-            <h2 className="status-title">Access Denied</h2>
-            <p>{panel.message}</p>
-            <button onClick={() => { setPanel(null); startCamera(); }} className="primary-cta-btn scanner-btn">Try Again</button>
+          <motion.div 
+            key="error" 
+            className="glass-card result-card error-panel"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <div className="status-hero error">
+              <div className="hero-icon-wrap">
+                <XCircle size={64} />
+              </div>
+              <h2 className="status-title">Security Violation</h2>
+              <p className="status-subtitle">{panel.message}</p>
+            </div>
+            
+            <div className="error-body">
+              <p>The scanned identity could not be verified against the master registration records. Please escort the participant to the help desk for manual check-in.</p>
+            </div>
+            
+            <button 
+              onClick={() => { setPanel(null); startCamera(); }} 
+              className="action-button error-btn"
+            >
+              <span>Reset Scanner</span>
+              <RefreshCw size={18} />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -345,15 +637,9 @@ export default function QRScanner() {
           opacity: 1 !important;
           visibility: visible !important;
         }
-        #reader__scan_region > div {
-          display: none !important;
-        }
-        #reader__scan_region canvas {
-          display: none !important;
-        }
-        #reader [id*="qr-shaded-region"] {
-          display: none !important;
-        }
+        #reader__scan_region > div { display: none !important; }
+        #reader__scan_region canvas { display: none !important; }
+        #reader [id*="qr-shaded-region"] { display: none !important; }
         #reader img { display: none !important; }
         
         .scanner-overlay {
@@ -367,6 +653,7 @@ export default function QRScanner() {
           align-items: center;
           justify-content: center;
           pointer-events: none;
+          overflow: hidden;
         }
         .viewfinder-guide {
           position: relative;
@@ -462,22 +749,118 @@ export default function QRScanner() {
         .control-btn:hover { background: rgba(255,255,255,0.2) !important; }
         .control-btn span { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; }
         
+        /* Result Panels */
         .result-card {
           padding: 1.5rem;
-          border-radius: 24px;
-          text-align: center;
+          border-radius: 32px;
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+          max-width: 500px;
+          margin: 0 auto;
+          width: 100%;
         }
-        .status-header { display: flex; align-items: center; gap: 1rem; justify-content: center; margin-bottom: 1rem; }
-        
-        .attendee-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 1rem 0; text-align: left; }
-        .attendee-item { background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 12px; }
-        .item-label { font-size: 0.6rem; color: rgba(255,255,255,0.4); text-transform: uppercase; display: block; }
-        .item-value { font-size: 0.8rem; font-weight: 600; color: white; }
-        .full-width { grid-column: span 2; }
-        
+
+        .status-hero {
+          display: flex;
+          align-items: center;
+          gap: 1.25rem;
+          padding: 0.5rem 0;
+        }
+        .status-hero.error {
+          flex-direction: column;
+          text-align: center;
+          padding: 2rem 0;
+        }
+        .hero-icon-wrap {
+          width: 64px;
+          height: 64px;
+          border-radius: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .success .hero-icon-wrap { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.2); }
+        .warning .hero-icon-wrap { background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); }
+        .error .hero-icon-wrap { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); width: 100px; height: 100px; margin-bottom: 1rem; }
+
+        .status-title {
+          font-size: 1.5rem;
+          font-weight: 900;
+          margin: 0;
+          letter-spacing: -0.02em;
+        }
+        .status-subtitle {
+          font-size: 0.85rem;
+          color: rgba(255, 255, 255, 0.5);
+          margin: 0.25rem 0 0;
+          font-weight: 500;
+        }
+
+        .action-button {
+          width: 100%;
+          padding: 1.15rem;
+          border-radius: 20px;
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.75rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .success-btn { background: #22c55e; color: black; }
+        .warning-btn { background: #eab308; color: black; }
+        .error-btn { background: #ef4444; color: white; }
+        .action-button:hover { transform: scale(1.02); filter: brightness(1.1); }
+        .action-button:active { transform: scale(0.98); }
+
+        .error-body {
+          text-align: center;
+          background: rgba(239, 68, 68, 0.05);
+          padding: 1.5rem;
+          border-radius: 20px;
+          border: 1px solid rgba(239, 68, 68, 0.1);
+        }
+        .error-body p {
+          margin: 0;
+          font-size: 0.9rem;
+          line-height: 1.6;
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        .loading-state {
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 4rem 2rem;
+        }
+        .loading-container {
+          position: relative;
+          margin-bottom: 2rem;
+        }
+        .loader-orbit {
+          position: absolute;
+          inset: -10px;
+          border: 2px solid var(--primary);
+          border-radius: 50%;
+          border-right-color: transparent;
+          border-bottom-color: transparent;
+          animation: rotate 1.5s linear infinite;
+        }
+
         @keyframes scan {
           0%, 100% { top: 10%; }
           50% { top: 90%; }
+        }
+        @keyframes rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>
