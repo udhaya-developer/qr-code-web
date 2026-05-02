@@ -113,28 +113,38 @@ function AttendeeDetails({ attendee }) {
         .advanced-details {
           display: flex;
           flex-direction: column;
-          gap: 1.25rem;
+          gap: 0.75rem;
           width: 100%;
           text-align: left;
+          overflow-y: auto;
+          max-height: 50vh;
+          padding-right: 4px;
+        }
+        .advanced-details::-webkit-scrollbar {
+          width: 4px;
+        }
+        .advanced-details::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
         }
 
         /* Profile Section */
         .profile-section {
           background: rgba(255, 255, 255, 0.04);
           border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 24px;
-          padding: 1.25rem;
+          border-radius: 20px;
+          padding: 1rem;
           display: flex;
           align-items: center;
-          gap: 1.25rem;
+          gap: 1rem;
           position: relative;
-          overflow: hidden;
+          flex-shrink: 0;
         }
         .profile-avatar {
-          width: 60px;
-          height: 60px;
+          width: 44px;
+          height: 44px;
           background: linear-gradient(135deg, var(--primary), #ca23ff);
-          border-radius: 18px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -144,8 +154,8 @@ function AttendeeDetails({ attendee }) {
         }
         .avatar-pulse {
           position: absolute;
-          inset: -4px;
-          border-radius: 22px;
+          inset: -3px;
+          border-radius: 15px;
           border: 2px solid var(--primary);
           opacity: 0.3;
           animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
@@ -155,79 +165,81 @@ function AttendeeDetails({ attendee }) {
           min-width: 0;
         }
         .profile-name {
-          font-size: 1.15rem;
+          font-size: 1rem;
           font-weight: 800;
           color: white;
           margin: 0;
-          letter-spacing: -0.01em;
         }
         .profile-email {
-          font-size: 0.85rem;
+          font-size: 0.75rem;
           color: rgba(255, 255, 255, 0.4);
-          margin: 0.1rem 0 0;
+          margin: 0;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
         .profile-badge {
           position: absolute;
-          top: 12px;
-          right: 12px;
+          top: 8px;
+          right: 10px;
           background: rgba(0, 0, 0, 0.3);
           border: 1px solid rgba(255, 255, 255, 0.1);
-          padding: 4px 10px;
+          padding: 2px 8px;
           border-radius: 100px;
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 4px;
           color: rgba(255, 255, 255, 0.5);
-          font-size: 0.65rem;
+          font-size: 0.6rem;
           font-weight: 700;
-          letter-spacing: 0.05em;
         }
 
         /* Bento Grid */
         .details-bento-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 0.75rem;
-        }
-        .bento-item {
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 20px;
-          padding: 1rem;
           display: flex;
           flex-direction: column;
-          gap: 0.75rem;
+          gap: 0.5rem;
+        }
+        .bento-item {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 16px;
+          padding: 0.75rem 1rem;
+          display: flex;
+          align-items: center;
+          gap: 1rem;
           transition: all 0.3s ease;
         }
         .item-icon-box {
-          width: 32px;
-          height: 32px;
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 10px;
+          width: 28px;
+          height: 28px;
+          background: rgba(255, 255, 255, 0.04);
+          border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
           color: var(--primary);
+          flex-shrink: 0;
         }
         .item-text {
           display: flex;
-          flex-direction: column;
-          gap: 0.1rem;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          flex: 1;
         }
         .item-label {
           font-size: 0.65rem;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.05em;
           color: rgba(255, 255, 255, 0.3);
           font-weight: 800;
         }
         .item-value {
-          font-size: 0.9rem;
+          font-size: 0.85rem;
           font-weight: 700;
           color: rgba(255, 255, 255, 0.9);
+          text-align: right;
         }
 
         /* Status Footer */
