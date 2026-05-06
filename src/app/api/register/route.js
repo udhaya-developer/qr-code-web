@@ -34,16 +34,32 @@ export async function POST(req) {
         );
       }
 
-      console.warn('MongoDB connection failed, falling back to Mock mode:', dbError.message);
+      const allowMock = String(process.env.ALLOW_MOCK_MODE || '').toLowerCase() === 'true';
+      if (allowMock) {
+        console.warn('MongoDB connection failed, falling back to Mock mode:', dbError?.message || dbError);
+        const ticketNumber = getNextMockTicketNumber();
+        const registrationId = `MOCK-${Math.floor(1000 + Math.random() * 9000)}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
+        return NextResponse.json(
+          {
+            success: true,
+            data: { ...data, registrationId, ticketNumber, _id: 'mock-id' },
+            message: 'Running in demo mode (MongoDB not connected)',
+          },
+          { status: 201 }
+        );
+      }
 
-      const ticketNumber = getNextMockTicketNumber();
-      const registrationId = `MOCK-${Math.floor(1000 + Math.random() * 9000)}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
-
-      return NextResponse.json({
-        success: true,
-        data: { ...data, registrationId, ticketNumber, _id: 'mock-id' },
-        message: 'Running in demo mode (MongoDB not connected)',
-      }, { status: 201 });
+      console.error('MongoDB connection failed during registration:', dbError);
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Database unavailable. Registration was not saved.',
+          ...(process.env.NODE_ENV !== 'production'
+            ? { debug: { error: dbError?.message || String(dbError) } }
+            : {}),
+        },
+        { status: 503 }
+      );
     }
   } catch (error) {
     console.error('Registration Error:', error);

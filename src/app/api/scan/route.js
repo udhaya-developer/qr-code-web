@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Attendee from '@/models/Attendee';
 
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 /** Public attendee snapshot for scan UI (no internal Mongo fields). */
 function serializeAttendee(attendee) {
   if (!attendee) return null;
@@ -27,11 +31,14 @@ function serializeAttendee(attendee) {
 function lookupFilterFromScan(scanned) {
   const trimmed = String(scanned ?? '').trim();
   if (!trimmed) return null;
-  const asNum = Number(trimmed);
+
+  // Accept ticket numbers with minor decoration like "#3"
+  const ticketLike = trimmed.replace(/^\s*#\s*/, '').trim();
+  const asNum = Number(ticketLike);
   if (
     Number.isSafeInteger(asNum) &&
     asNum >= 1 &&
-    String(asNum) === trimmed
+    String(asNum) === ticketLike
   ) {
     return { ticketNumber: asNum };
   }
@@ -48,59 +55,60 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: 'Invalid QR Code' }, { status: 400 });
     }
 
-    try {
-      await connectDB();
-      const attendee = await Attendee.findOne(filter);
+    // Cold starts / transient DNS hiccups can cause the very first request to fail.
+    // Retry once before treating it as a service outage.
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        await connectDB();
+        const attendee = await Attendee.findOne(filter);
 
-      if (!attendee) {
-        return NextResponse.json({ success: false, message: 'Attendee not found' }, { status: 404 });
-      }
+        if (!attendee) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: 'Attendee not found',
+              ...(process.env.NODE_ENV !== 'production'
+                ? { debug: { scanned: String(scanned ?? ''), filter } }
+                : {}),
+            },
+            { status: 404 }
+          );
+        }
 
-      if (attendee.checkedIn) {
+        if (attendee.checkedIn) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: 'Already Checked In',
+              attendee: serializeAttendee(attendee),
+            },
+            { status: 400 }
+          );
+        }
+
+        attendee.checkedIn = true;
+        attendee.checkedInAt = new Date();
+        await attendee.save();
+
         return NextResponse.json({
-          success: false,
-          message: 'Already Checked In',
+          success: true,
+          message: 'Access Granted',
           attendee: serializeAttendee(attendee),
-        }, { status: 400 });
+        });
+      } catch (dbError) {
+        console.warn(`Scan DB failure (attempt ${attempt}/2)`, dbError?.message || dbError);
+        if (attempt === 1) {
+          await sleep(350);
+          continue;
+        }
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Database unavailable. Please retry scan.',
+          },
+          { status: 503 }
+        );
       }
-
-      attendee.checkedIn = true;
-      attendee.checkedInAt = new Date();
-      await attendee.save();
-
-      return NextResponse.json({
-        success: true,
-        message: 'Access Granted',
-        attendee: serializeAttendee(attendee),
-      });
-    } catch (dbError) {
-      console.warn('Scan DB failure, using Mock mode');
-      const registrationId = typeof scanned === 'string' ? scanned : String(scanned);
-      if (registrationId.includes('ALREADY')) {
-        return NextResponse.json({ success: false, message: 'Already Checked In' }, { status: 400 });
-      }
-      if (registrationId.includes('INVALID')) {
-        return NextResponse.json({ success: false, message: 'Attendee not found' }, { status: 404 });
-      }
-
-      const ticketMatch = /^\d+$/.test(registrationId.trim());
-      const now = new Date().toISOString();
-      return NextResponse.json({
-        success: true,
-        message: 'Access Granted (Mock)',
-        attendee: {
-          fullName: 'Mock Attendee',
-          email: 'demo@example.com',
-          phone: '+1 000 000 0000',
-          referredBy: 'None',
-          squad: 'SURGE',
-          registrationId,
-          ticketNumber: ticketMatch ? Number(registrationId.trim()) : null,
-          checkedIn: true,
-          checkedInAt: now,
-          createdAt: now,
-        },
-      });
     }
 
   } catch (error) {

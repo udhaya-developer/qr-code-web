@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -13,7 +13,17 @@ import {
 } from '@/lib/idCardTemplateSettings';
 
 export default function SettingsPage() {
-  const [form, setForm] = useState(DEFAULT_ID_CARD_SETTINGS);
+  const [form, setForm] = useState(() => {
+    try {
+      if (typeof window === 'undefined') return DEFAULT_ID_CARD_SETTINGS;
+      const raw = window.localStorage.getItem(ID_CARD_SETTINGS_KEY);
+      if (!raw) return DEFAULT_ID_CARD_SETTINGS;
+      const parsed = JSON.parse(raw);
+      return normalizeIdCardSettings(parsed);
+    } catch {
+      return DEFAULT_ID_CARD_SETTINGS;
+    }
+  });
   const [saved, setSaved] = useState(false);
   const [imageSize, setImageSize] = useState({ width: 674, height: 1024 });
   const [imageLoaded, setImageLoaded] = useState(true);
@@ -25,17 +35,6 @@ export default function SettingsPage() {
       setToastMessage('');
     }, 2200);
   };
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(ID_CARD_SETTINGS_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      setForm(normalizeIdCardSettings(parsed));
-    } catch {
-      // Keep defaults.
-    }
-  }, []);
 
   const getTemplatePreset = (templateFile) => {
     try {
@@ -114,84 +113,138 @@ export default function SettingsPage() {
   const qrSlotStyle = getQrSlotPercentStyle(placement, imageSize.width, imageSize.height);
 
   return (
-    <main>
-      <div className="container">
-        <section className="nx-section nx-register-page">
-          <div className="nx-register-head">
-            <Link href="/register" className="nx-back-link">Back to Register</Link>
-            <p className="nx-kicker">ID TEMPLATE CONTROL</p>
-            <h1 className="nx-title" style={{ fontSize: '2.8rem', marginTop: '0.8rem' }}>
-              QR PLACEMENT <span>SETTINGS</span>
-            </h1>
-            <p className="nx-subtitle">Set X, Y and Width to place the QR correctly per event template.</p>
-            <p className="nx-form-note" style={{ marginTop: '0.75rem' }}>
-              Current template size: {imageSize.width} x {imageSize.height}px
-            </p>
-          </div>
+    <main className="nx-register-page">
+      <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+        <div className="nx-register-head">
+          <Link href="/register" className="nx-back-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Back to Register
+          </Link>
+          <p className="nx-kicker">Template Control Panel</p>
+          <h1 className="nx-title" style={{ fontSize: '3rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+            QR <span>Calibration</span>
+          </h1>
+          <p className="nx-subtitle" style={{ maxWidth: '600px', margin: '0' }}>
+            Precision-tune the QR code placement for your event templates. Changes are reflected in real-time.
+          </p>
+        </div>
 
-          <div className="glass-card nx-settings-card">
-            <div className="nx-settings-grid">
-              <div className="form-group">
-                <label>Template file (inside public folder)</label>
+        <div className="nx-settings-layout">
+          {/* Left Column: Form Settings */}
+          <div className="nx-settings-form-section">
+            <div className="nx-settings-group">
+              <h3 className="nx-settings-group-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary)' }}>
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+                Template Assets
+              </h3>
+              <div className="nx-input-wrapper">
+                <label>Template Filename</label>
                 <input
                   value={form.templateFile}
                   onChange={(event) => update('templateFile', event.target.value)}
-                  placeholder="milezero-id-template.png"
+                  placeholder="e.g. event-template.png"
                 />
+                <p className="nx-form-note" style={{ textAlign: 'left', marginTop: '0.5rem', textTransform: 'none' }}>
+                  Ensure this file exists in your <code>/public</code> folder.
+                </p>
               </div>
-              <div className="form-group">
-                <label>Template Width (auto)</label>
-                <input value={imageSize.width} readOnly />
-              </div>
-              <div className="form-group">
-                <label>Template Height (auto)</label>
-                <input value={imageSize.height} readOnly />
-              </div>
-              <div className="form-group">
-                <label>QR X (px)</label>
-                <input
-                  type="number"
-                  value={form.qrX}
-                  onChange={(event) => update('qrX', event.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label>QR Y (px)</label>
-                <input
-                  type="number"
-                  value={form.qrY}
-                  onChange={(event) => update('qrY', event.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label>QR Width (px)</label>
-                <input
-                  type="number"
-                  value={form.qrWidth}
-                  onChange={(event) => update('qrWidth', event.target.value)}
-                />
+
+              <div className="nx-form-grid" style={{ marginTop: '1.5rem' }}>
+                <div className="nx-input-wrapper nx-half">
+                  <label>Width (Auto)</label>
+                  <input value={`${imageSize.width}px`} readOnly />
+                </div>
+                <div className="nx-input-wrapper nx-half">
+                  <label>Height (Auto)</label>
+                  <input value={`${imageSize.height}px`} readOnly />
+                </div>
               </div>
             </div>
 
-            <div className="print-actions" style={{ marginTop: '0.5rem' }}>
-              <button className="print-btn" onClick={saveSettings}>Save Settings</button>
-              <button className="print-btn" onClick={resetDefaults}>Reset Defaults</button>
-              <Link href="/register" className="print-btn">Go to Register</Link>
+            <div className="nx-settings-group">
+              <h3 className="nx-settings-group-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary)' }}>
+                  <circle cx="12" cy="12" r="10" />
+                  <circle cx="12" cy="12" r="6" />
+                  <circle cx="12" cy="12" r="2" />
+                </svg>
+                QR Positioning
+              </h3>
+              <div className="nx-form-grid">
+                <div className="nx-input-wrapper nx-half">
+                  <label>X-Coordinate (px)</label>
+                  <input
+                    type="number"
+                    value={form.qrX}
+                    onChange={(event) => update('qrX', event.target.value)}
+                  />
+                </div>
+                <div className="nx-input-wrapper nx-half">
+                  <label>Y-Coordinate (px)</label>
+                  <input
+                    type="number"
+                    value={form.qrY}
+                    onChange={(event) => update('qrY', event.target.value)}
+                  />
+                </div>
+                <div className="nx-input-wrapper nx-full">
+                  <label>QR Size / Width (px)</label>
+                  <input
+                    type="number"
+                    value={form.qrWidth}
+                    onChange={(event) => update('qrWidth', event.target.value)}
+                  />
+                </div>
+              </div>
             </div>
 
-            {saved && <p className="nx-form-note" style={{ marginTop: '1rem' }}>Settings saved.</p>}
-            {toastMessage && <div className="nx-settings-toast">{toastMessage}</div>}
+            <div className="nx-settings-actions">
+              <button className="nx-btn" onClick={saveSettings} style={{ width: '100%', height: '54px' }}>
+                Save Configuration
+              </button>
+              <button className="nx-btn" onClick={resetDefaults} style={{ width: '100%', height: '54px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', boxShadow: 'none' }}>
+                Reset to Default
+              </button>
+            </div>
 
-            <div className="nx-settings-preview">
-              <p className="nx-form-note">Live Preview</p>
-              <div className="id-card id-card-template">
+            {saved && (
+              <div style={{ 
+                marginTop: '1rem', 
+                padding: '1rem', 
+                background: 'rgba(34, 197, 94, 0.1)', 
+                border: '1px solid rgba(34, 197, 94, 0.2)', 
+                borderRadius: '8px',
+                color: '#4ade80',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <span>✓</span> Settings successfully persisted.
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Live Preview */}
+          <div className="nx-settings-preview" style={{ marginTop: '0' }}>
+            <h3 className="nx-settings-group-title" style={{ marginBottom: '1.5rem' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary)' }}>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Real-time Preview
+            </h3>
+            <div className="nx-preview-container">
+              <div className="id-card id-card-template" style={{ margin: '0' }}>
                 <img
                   src={`/${preview.templateFile}`}
                   alt="Template preview"
                   className="id-template-image"
-                  onError={() => {
-                    setImageLoaded(false);
-                  }}
+                  onError={() => setImageLoaded(false)}
                   onLoad={(event) => {
                     const img = event.currentTarget;
                     if (img.naturalWidth && img.naturalHeight) {
@@ -200,19 +253,30 @@ export default function SettingsPage() {
                     }
                   }}
                 />
-                <div
-                  className="id-template-qr-slot"
-                  style={qrSlotStyle}
-                >
+                <div className="id-template-qr-slot" style={qrSlotStyle}>
                   <div className="id-template-qr-inner">
                     <QRCodeSVG value="PREVIEW-QR-1234" size={placement.qrWidth} includeMargin={false} />
                   </div>
                 </div>
               </div>
             </div>
+            
+            <div style={{ marginTop: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Preview Scale</span>
+                <span style={{ fontSize: '0.75rem', color: '#fff' }}>Fit to Width</span>
+              </div>
+              <div style={{ height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '100%', background: 'var(--primary)' }}></div>
+              </div>
+              <p className="nx-form-note" style={{ marginTop: '1rem', textAlign: 'left', textTransform: 'none' }}>
+                The preview above represents how the final ID card will look. Use the coordinates on the left to align the QR code precisely over the intended slot.
+              </p>
+            </div>
           </div>
-        </section>
+        </div>
       </div>
+      {toastMessage && <div className="nx-settings-toast">{toastMessage}</div>}
     </main>
   );
 }

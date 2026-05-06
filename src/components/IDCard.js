@@ -3,7 +3,7 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { Printer } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   DEFAULT_ID_CARD_SETTINGS,
@@ -15,19 +15,18 @@ import {
 
 export default function IDCard({ attendee }) {
   const [downloading, setDownloading] = useState(false);
-  const [settings, setSettings] = useState(DEFAULT_ID_CARD_SETTINGS);
-  const [imageSize, setImageSize] = useState({ width: 674, height: 1024 });
-
-  useEffect(() => {
+  const [settings] = useState(() => {
     try {
+      if (typeof window === 'undefined') return DEFAULT_ID_CARD_SETTINGS;
       const raw = window.localStorage.getItem(ID_CARD_SETTINGS_KEY);
-      if (!raw) return;
+      if (!raw) return DEFAULT_ID_CARD_SETTINGS;
       const parsed = JSON.parse(raw);
-      setSettings(normalizeIdCardSettings(parsed));
+      return normalizeIdCardSettings(parsed);
     } catch {
-      // Ignore malformed local settings and keep defaults.
+      return DEFAULT_ID_CARD_SETTINGS;
     }
-  }, []);
+  });
+  const [imageSize, setImageSize] = useState({ width: 674, height: 1024 });
 
   const qrSlotStyle = useMemo(
     () =>

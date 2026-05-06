@@ -25,10 +25,10 @@ export default function RegisterPage() {
         <header className="nx-navbar">
           <div className="nx-logo">NEXUS PROTOCOL</div>
           <nav className="nx-menu">
-            <a href="/">SCHEDULE</a>
-            <a href="/">SPEAKERS</a>
-            <a href="/">VENUES</a>
-            <a href="/">TICKETS</a>
+            <Link href="/">SCHEDULE</Link>
+            <Link href="/">SPEAKERS</Link>
+            <Link href="/">VENUES</Link>
+            <Link href="/">TICKETS</Link>
           </nav>
           <Link href="/register" className="nx-btn">REGISTER NOW</Link>
         </header>
@@ -79,10 +79,10 @@ export default function RegisterPage() {
           <div className="nx-footer-inner">
             <div className="nx-logo">NEXUS PROTOCOL</div>
             <div className="nx-footer-links">
-              <a href="/">PRIVACY</a>
-              <a href="/">TERMS</a>
-              <a href="/">CONTACT</a>
-              <a href="/">PRESS</a>
+              <Link href="/">PRIVACY</Link>
+              <Link href="/">TERMS</Link>
+              <Link href="/">CONTACT</Link>
+              <Link href="/">PRESS</Link>
             </div>
           </div>
           <p className="nx-footer-bottom">© 2026 NEXUS EVENT PROTOCOL. ALL RIGHTS RESERVED.</p>

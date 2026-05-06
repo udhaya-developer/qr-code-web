@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
 import { 
   AlertTriangle, 
   CheckCircle, 
@@ -321,11 +320,30 @@ export default function QRScanner() {
   const [cameraError, setCameraError] = useState(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState("environment");
+  const [transitioning, setTransitioning] = useState(false);
   
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
   const isTransitioning = useRef(false);
   const mountRef = useRef(true);
+  const Html5QrcodeRef = useRef(null);
+  const html5LoadPromiseRef = useRef(null);
+
+  const ensureHtml5Qrcode = useCallback(async () => {
+    if (Html5QrcodeRef.current) return Html5QrcodeRef.current;
+    if (!html5LoadPromiseRef.current) {
+      html5LoadPromiseRef.current = import('html5-qrcode')
+        .then((mod) => {
+          Html5QrcodeRef.current = mod.Html5Qrcode;
+          return Html5QrcodeRef.current;
+        })
+        .catch((err) => {
+          html5LoadPromiseRef.current = null;
+          throw err;
+        });
+    }
+    return html5LoadPromiseRef.current;
+  }, []);
 
   const handleScan = useCallback(async (scanned) => {
     if (scannerRef.current) {
@@ -372,14 +390,21 @@ export default function QRScanner() {
   const startCamera = useCallback(async (mode = facingMode) => {
     if (!mountRef.current || isTransitioning.current) return;
     
+    // Wait briefly for the reader element to exist (avoids self-referencing startCamera).
     let element = document.getElementById("reader");
     if (!element) {
-      setTimeout(() => startCamera(mode), 300);
-      return;
+      for (let i = 0; i < 4; i++) {
+        await new Promise((r) => setTimeout(r, 200));
+        element = document.getElementById("reader");
+        if (element) break;
+      }
+      if (!element) return;
     }
 
     try {
+      const Html5Qrcode = await ensureHtml5Qrcode();
       isTransitioning.current = true;
+      setTransitioning(true);
       setCameraError(null);
       
       if (scannerRef.current) {
@@ -412,12 +437,13 @@ export default function QRScanner() {
     } catch (err) {
       const msg = err.toString().toLowerCase();
       if (!msg.includes("transition") && !msg.includes("state")) {
-        setCameraError("Camera access failed. Check permissions.");
+        setCameraError("Camera access failed. Check permissions or reload.");
       }
     } finally {
       isTransitioning.current = false;
+      if (mountRef.current) setTransitioning(false);
     }
-  }, [handleScan, facingMode]);
+  }, [ensureHtml5Qrcode, handleScan, facingMode]);
 
   useEffect(() => {
     mountRef.current = true;
@@ -438,11 +464,12 @@ export default function QRScanner() {
     startCamera(newMode);
   };
 
-  const handleGalleryUpload = async (e) => {
+  const handleGalleryUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setLoading(true);
     try {
+      const Html5Qrcode = await ensureHtml5Qrcode();
       const qr = new Html5Qrcode("reader");
       const text = await qr.scanFile(file, true);
       handleScan(text);
@@ -450,7 +477,7 @@ export default function QRScanner() {
       setPanel({ type: 'error', message: 'No QR code found' });
       setLoading(false);
     }
-  };
+  }, [ensureHtml5Qrcode, handleScan]);
 
   return (
     <div className="scanner-container">
@@ -492,7 +519,7 @@ export default function QRScanner() {
             {isCameraActive && <p className="scanner-hint">Align QR code within the frame</p>}
 
             <div className="scanner-controls">
-              <button onClick={toggleCamera} className="control-btn" disabled={isTransitioning.current}>
+              <button onClick={toggleCamera} className="control-btn" disabled={transitioning}>
                 <FlipHorizontal size={20} />
                 <span>Switch</span>
               </button>

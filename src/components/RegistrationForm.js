@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { ID_CARD_SETTINGS_KEY } from '@/lib/idCardTemplateSettings';
 
 export default function RegistrationForm({ onRegistered }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [distributionNote, setDistributionNote] = useState('');
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -52,6 +54,40 @@ export default function RegistrationForm({ onRegistered }) {
       });
 
       onRegistered(data.data);
+
+      if (process.env.NEXT_PUBLIC_AUTO_DISTRIBUTE === 'true') {
+        setDistributionNote('Sending your ID card to email/WhatsApp…');
+        let settings = undefined;
+        try {
+          const raw = window.localStorage.getItem(ID_CARD_SETTINGS_KEY);
+          if (raw) settings = JSON.parse(raw);
+        } catch {
+          // ignore localStorage parse failures
+        }
+
+        fetch('/api/distribute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            registrationId: data.data.registrationId,
+            // Ensure server generates the same placement used by Download (which also reads this).
+            settings,
+          }),
+        })
+          .then(async (r) => {
+            const out = await r.json().catch(() => ({}));
+            if (!r.ok || !out?.success) {
+              setDistributionNote('ID generated, but message delivery is not configured yet.');
+              return;
+            }
+            const emailStatus = out.emailStatus || 'skipped';
+            const whatsappStatus = out.whatsappStatus || 'skipped';
+            setDistributionNote(`Delivery status — Email: ${emailStatus}, WhatsApp: ${whatsappStatus}`);
+          })
+          .catch(() => {
+            setDistributionNote('ID generated, but message delivery failed.');
+          });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -133,6 +169,7 @@ export default function RegistrationForm({ onRegistered }) {
         </div>
 
         {error && <p className="nx-form-error">{error}</p>}
+        {distributionNote && <p className="nx-form-note nx-full">{distributionNote}</p>}
 
         <button 
           type="submit" 
