@@ -320,11 +320,13 @@ export default function QRScanner() {
   const [cameraError, setCameraError] = useState(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState("environment");
+  const [gateType, setGateType] = useState('normal');
   const [transitioning, setTransitioning] = useState(false);
   
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
   const isTransitioning = useRef(false);
+  const scanLockRef = useRef(false);
   const mountRef = useRef(true);
   const Html5QrcodeRef = useRef(null);
   const html5LoadPromiseRef = useRef(null);
@@ -346,6 +348,11 @@ export default function QRScanner() {
   }, []);
 
   const handleScan = useCallback(async (scanned) => {
+    if (!mountRef.current) return;
+    if (scanLockRef.current) return;
+    if (isTransitioning.current) return;
+    scanLockRef.current = true;
+
     if (scannerRef.current) {
       try {
         if (scannerRef.current.isScanning) {
@@ -361,7 +368,7 @@ export default function QRScanner() {
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ registrationId: scanned }),
+        body: JSON.stringify({ registrationId: scanned, gateType }),
       });
 
       const data = await res.json();
@@ -369,11 +376,26 @@ export default function QRScanner() {
       if (data.success && data.attendee) {
         setPanel({ type: 'success', attendee: data.attendee });
       } else if (data.attendee) {
-        setPanel({
-          type: 'warning',
-          attendee: data.attendee,
-          message: data.message || 'Notice',
-        });
+        const reason = String(data.reason || '').trim();
+        if (reason === 'already_checked_in') {
+          setPanel({
+            type: 'warning',
+            attendee: data.attendee,
+            message: data.message || 'Already checked in',
+          });
+        } else if (reason === 'gate_mismatch') {
+          setPanel({
+            type: 'error',
+            attendee: data.attendee,
+            message: data.message || 'Not Allowed',
+          });
+        } else {
+          setPanel({
+            type: 'error',
+            attendee: data.attendee,
+            message: data.message || 'Not Allowed',
+          });
+        }
       } else {
         setPanel({
           type: 'error',
@@ -384,8 +406,9 @@ export default function QRScanner() {
       setPanel({ type: 'error', message: 'Connection error' });
     } finally {
       setLoading(false);
+      scanLockRef.current = false;
     }
-  }, []);
+  }, [gateType]);
 
   const startCamera = useCallback(async (mode = facingMode) => {
     if (!mountRef.current || isTransitioning.current) return;
@@ -406,6 +429,7 @@ export default function QRScanner() {
       isTransitioning.current = true;
       setTransitioning(true);
       setCameraError(null);
+      scanLockRef.current = false;
       
       if (scannerRef.current) {
         try {
@@ -518,6 +542,19 @@ export default function QRScanner() {
             
             {isCameraActive && <p className="scanner-hint">Align QR code within the frame</p>}
 
+            <div className="gate-row">
+              <label className="gate-label">Gate</label>
+              <select
+                className="gate-select"
+                value={gateType}
+                onChange={(e) => setGateType(e.target.value)}
+                disabled={transitioning || loading}
+              >
+                <option value="normal">Normal Guest Entry</option>
+                <option value="vip">VIP Entry</option>
+              </select>
+            </div>
+
             <div className="scanner-controls">
               <button onClick={toggleCamera} className="control-btn" disabled={transitioning}>
                 <FlipHorizontal size={20} />
@@ -618,13 +655,17 @@ export default function QRScanner() {
               <div className="hero-icon-wrap">
                 <XCircle size={64} />
               </div>
-              <h2 className="status-title">Security Violation</h2>
+              <h2 className="status-title">{panel.message === 'Not Allowed' ? 'Not Allowed' : 'Security Violation'}</h2>
               <p className="status-subtitle">{panel.message}</p>
             </div>
             
+            {panel.attendee ? (
+              <AttendeeDetails attendee={panel.attendee} />
+            ) : (
             <div className="error-body">
               <p>The scanned identity could not be verified against the master registration records. Please escort the participant to the help desk for manual check-in.</p>
             </div>
+            )}
             
             <button 
               onClick={() => { setPanel(null); startCamera(); }} 
@@ -772,6 +813,67 @@ export default function QRScanner() {
           gap: 1rem;
           z-index: 20;
           padding: 0 1rem;
+        }
+
+        .gate-row {
+          position: absolute;
+          top: 14px;
+          left: 14px;
+          right: 14px;
+          z-index: 25;
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          padding: 0.55rem 0.75rem;
+          background: rgba(0, 0, 0, 0.35);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 14px;
+          backdrop-filter: blur(10px);
+        }
+        .gate-label {
+          color: rgba(255, 255, 255, 0.8);
+          font-size: 0.65rem;
+          font-weight: 900;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          flex-shrink: 0;
+          margin: 0;
+          line-height: 1;
+          padding-top: 1px; /* optical centering vs select text */
+        }
+        .gate-select {
+          flex: 1;
+          height: 38px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.06);
+          color: white;
+          font-weight: 800;
+          padding: 0 2.25rem 0 0.9rem;
+          outline: none;
+          line-height: 1;
+          display: flex;
+          align-items: center;
+          appearance: none;
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          background-image:
+            linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.85) 50%),
+            linear-gradient(135deg, rgba(255,255,255,0.85) 50%, transparent 50%);
+          background-position:
+            calc(100% - 16px) 55%,
+            calc(100% - 11px) 55%;
+          background-size: 5px 5px, 5px 5px;
+          background-repeat: no-repeat;
+        }
+        .gate-select option {
+          background: #0b0b12;
+          color: white;
+        }
+
+        .gate-select:focus {
+          border-color: rgba(202, 35, 255, 0.65);
+          box-shadow: 0 0 0 3px rgba(202, 35, 255, 0.15);
         }
         
         .control-btn {

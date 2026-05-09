@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const [imageSize, setImageSize] = useState({ width: 674, height: 1024 });
   const [imageLoaded, setImageLoaded] = useState(true);
   const [toastMessage, setToastMessage] = useState('');
+  const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
 
   const showToast = (message) => {
     setToastMessage(message);
@@ -71,6 +72,41 @@ export default function SettingsPage() {
     }
 
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleTemplateUpload = async (event) => {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingTemplate(true);
+      setSaved(false);
+      showToast('Uploading template...');
+
+      const body = new FormData();
+      body.append('file', file);
+
+      const res = await fetch('/api/template/upload', {
+        method: 'POST',
+        body,
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        const msg = data?.message || 'Upload failed';
+        showToast(msg);
+        return;
+      }
+
+      update('templateFile', data.templateFile);
+      showToast('Template uploaded. Preview updated.');
+    } catch (e) {
+      showToast(e?.message || 'Upload failed');
+    } finally {
+      setIsUploadingTemplate(false);
+      // Let user re-upload the same filename again
+      event.target.value = '';
+    }
   };
 
   const saveSettings = () => {
@@ -149,7 +185,20 @@ export default function SettingsPage() {
                   placeholder="e.g. event-template.png"
                 />
                 <p className="nx-form-note" style={{ textAlign: 'left', marginTop: '0.5rem', textTransform: 'none' }}>
-                  Ensure this file exists in your <code>/public</code> folder.
+                  You can type a filename in <code>/public</code>, or upload a new template below.
+                </p>
+              </div>
+
+              <div className="nx-input-wrapper" style={{ marginTop: '1rem' }}>
+                <label>Upload Template Image</label>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleTemplateUpload}
+                  disabled={isUploadingTemplate}
+                />
+                <p className="nx-form-note" style={{ textAlign: 'left', marginTop: '0.5rem', textTransform: 'none' }}>
+                  Uploaded files are saved to <code>/public/id-templates</code> and selected automatically.
                 </p>
               </div>
 

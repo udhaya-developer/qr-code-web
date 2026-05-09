@@ -14,13 +14,21 @@ const AttendeeSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide your phone number.'],
   },
+  /** Guest type used for gate validation (vip | normal). */
+  guestType: {
+    type: String,
+    enum: ['vip', 'normal'],
+    default: 'normal',
+    index: true,
+  },
   referredBy: {
     type: String,
     default: 'None',
   },
   squad: {
     type: String,
-    required: [true, 'Please select your squad.'],
+    // Existing UI requires this, but bulk-import guests may not have squads.
+    default: 'Guest',
   },
   registrationId: {
     type: String,

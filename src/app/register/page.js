@@ -29,6 +29,7 @@ export default function RegisterPage() {
             <Link href="/">SPEAKERS</Link>
             <Link href="/">VENUES</Link>
             <Link href="/">TICKETS</Link>
+            <Link href="/bulk-upload">BULK UPLOAD</Link>
           </nav>
           <Link href="/register" className="nx-btn">REGISTER NOW</Link>
         </header>

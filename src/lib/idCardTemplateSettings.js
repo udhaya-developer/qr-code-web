@@ -18,7 +18,7 @@ const toNumber = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-export function normalizeIdCardSettings(input) {
+export function   normalizeIdCardSettings(input) {
   const source = input && typeof input === 'object' ? input : {};
 
   const templateFileRaw = typeof source.templateFile === 'string' ? source.templateFile.trim() : '';

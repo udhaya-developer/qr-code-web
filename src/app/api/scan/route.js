@@ -17,6 +17,7 @@ function serializeAttendee(attendee) {
     fullName: o.fullName ?? '',
     email: o.email ?? '',
     phone: o.phone ?? '',
+    guestType: o.guestType ?? 'normal',
     referredBy: o.referredBy ?? '',
     squad: o.squad ?? '',
     registrationId: o.registrationId ?? '',
@@ -25,6 +26,14 @@ function serializeAttendee(attendee) {
     checkedInAt: o.checkedInAt ? new Date(o.checkedInAt).toISOString() : null,
     createdAt: o.createdAt ? new Date(o.createdAt).toISOString() : null,
   };
+}
+
+function normalizeGateType(v) {
+  const raw = String(v ?? '').trim().toLowerCase();
+  if (!raw) return '';
+  if (raw === 'vip' || raw.includes('vip')) return 'vip';
+  if (raw === 'normal' || raw.includes('normal')) return 'normal';
+  return '';
 }
 
 /** Resolve QR payload: numeric ticket (e.g. "42") or legacy registration id string. */
@@ -49,6 +58,7 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const scanned = body.registrationId ?? body.code ?? '';
+    const gateType = normalizeGateType(body.gateType ?? body.gate ?? '');
 
     const filter = lookupFilterFromScan(scanned);
     if (!filter) {
@@ -75,10 +85,23 @@ export async function POST(req) {
           );
         }
 
+        if (gateType && String(attendee.guestType || 'normal') !== gateType) {
+          return NextResponse.json(
+            {
+              success: false,
+              reason: 'gate_mismatch',
+              message: gateType === 'vip' ? 'VIP gate only. This is a Normal guest.' : 'Normal gate only. This is a VIP guest.',
+              attendee: serializeAttendee(attendee),
+            },
+            { status: 403 }
+          );
+        }
+
         if (attendee.checkedIn) {
           return NextResponse.json(
             {
               success: false,
+              reason: 'already_checked_in',
               message: 'Already Checked In',
               attendee: serializeAttendee(attendee),
             },

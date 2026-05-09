@@ -11,34 +11,39 @@ export default function ScanPage() {
       <div className="scan-bg-overlay" />
       
       <div className="scan-container-outer">
-        <header className="scan-header">
+        <header className="scan-header nx-register-head">
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="exit-wrapper"
           >
-            <Link href="/" className="exit-btn">
+            <Link href="/" className="exit-btn nx-back-link">
               <ArrowLeft size={16} /> <span>Exit Portal</span>
             </Link>
           </motion.div>
 
-          <div className="staff-badge">
+          <div className="staff-badge nx-kicker">
             <ShieldCheck size={14} className="badge-icon" />
             <span>Staff Verification Portal</span>
           </div>
 
-          <motion.h1 
-            initial={{ opacity: 0, scale: 0.95 }}
+          <motion.h1
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="title scan-title"
+            transition={{ duration: 0.5 }}
+            className="scan-title nx-title"
           >
-            Entry <span>Control</span>
+            ENTRY <span>CONTROL</span>
           </motion.h1>
+
+          <div className="scan-divider nx-register-divider" />
         </header>
 
-        <div className="scanner-wrapper">
-          <QRScanner />
+        <div className="scanner-shell">
+          <div className="scanner-wrapper">
+            <QRScanner />
+          </div>
         </div>
 
         <footer className="scan-footer">
@@ -48,11 +53,12 @@ export default function ScanPage() {
 
       <style jsx>{`
         .scan-main {
-          min-height: 100vh;
-          height: 100vh;
+          min-height: 100dvh;
+          height: auto;
           background: #050508;
           position: relative;
-          overflow: hidden;
+          overflow-x: hidden;
+          overflow-y: auto;
           display: flex;
           flex-direction: column;
         }
@@ -71,80 +77,80 @@ export default function ScanPage() {
           position: relative;
           z-index: 2;
           width: 100%;
-          max-width: 600px;
+          max-width: 1100px;
           margin: 0 auto;
-          padding: 1.5rem 1rem 0.5rem;
+          padding: 1.25rem 1.25rem 0.5rem;
           display: flex;
           flex-direction: column;
           flex: 1;
-          height: 100%;
+          min-height: 100%;
+          padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
         }
         .scan-header {
           display: flex;
           flex-direction: column;
-          align-items: center;
-          text-align: center;
+          align-items: flex-start;
+          text-align: left;
           flex-shrink: 0;
-          margin-top: 20px;
-          gap: 10px;
+          margin-top: 6px;
+          gap: 8px;
         }
         .exit-wrapper {
-          margin-bottom: 1.25rem;
+          margin-bottom: 0.35rem;
         }
         .exit-btn {
           display: inline-flex;
           align-items: center;
           gap: 0.6rem;
-          padding: 0.6rem 1.2rem;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 100px;
-          color: rgba(255, 255, 255, 0.8);
+          padding: 0;
+          background: transparent;
+          border: none;
+          border-radius: 0;
+          color: #9ca3af;
           text-decoration: none;
-          font-size: 0.75rem;
-          font-weight: 700;
+          font-size: 0.76rem;
+          font-weight: 800;
           text-transform: uppercase;
-          letter-spacing: 0.1em;
+          letter-spacing: 0.06em;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          margin: 10px 0px;
+          margin: 0;
         }
         .exit-btn:hover {
-          background: rgba(255, 255, 255, 0.1);
-          border-color: var(--primary);
-          color: white;
-          transform: translateY(-2px);
-          box-shadow: 0 5px 15px rgba(202, 35, 255, 0.2);
+          color: rgba(255, 255, 255, 0.9);
+          transform: translateY(-1px);
         }
         .staff-badge {
           display: flex;
           align-items: center;
-          justify-content: center;
+          justify-content: flex-start;
           gap: 0.5rem;
-          margin-bottom: 0.5rem;
-          font-size: 0.6rem;
-          font-weight: 800;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: var(--primary);
-          opacity: 0.8;
+          margin-bottom: 0.2rem;
         }
         .badge-icon {
           color: var(--primary);
         }
         .scan-title {
-          font-size: clamp(2rem, 8vw, 3rem) !important;
-          margin-bottom: 0 !important;
-          line-height: 1 !important;
-          font-weight: 900 !important;
-          letter-spacing: -0.02em !important;
-          text-transform: uppercase !important;
-          background: linear-gradient(to bottom, #fff 30%, rgba(255,255,255,0.4));
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+          font-size: clamp(2.4rem, 6.5vw, 5.2rem);
+          margin: 0;
+          line-height: 1.05;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+          text-transform: uppercase;
+        }
+        .scan-divider {
+          margin-top: 0.35rem;
+        }
+        .scanner-shell {
+          width: 100%;
+          flex: 1;
+          display: flex;
+          justify-content: center;
+          min-height: 0;
         }
         .scanner-wrapper {
           position: relative;
           width: 100%;
+          max-width: 600px;
           flex: 1;
           display: flex;
           flex-direction: column;
@@ -163,7 +169,10 @@ export default function ScanPage() {
 
         @media (max-width: 480px) {
           .scan-container-outer {
-            padding: 1rem 0.75rem 0.25rem;
+            padding: 1rem 0.9rem 0.25rem;
+          }
+          .scanner-wrapper {
+            margin-top: 0.75rem;
           }
         }
       `}</style>
