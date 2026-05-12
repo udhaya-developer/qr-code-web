@@ -2,7 +2,14 @@ import path from 'path';
 import { readFile } from 'fs/promises';
 import sharp from 'sharp';
 import QRCode from 'qrcode';
-import { getScaledQrPlacement, normalizeIdCardSettings } from '@/lib/idCardTemplateSettings';
+import {
+  getScaledQrPlacement,
+  isStoredIdCardTemplateFile,
+  normalizeIdCardSettings,
+  profileFromStoredTemplateFile,
+} from '@/lib/idCardTemplateSettings';
+import { bufferFromStoredDoc, extensionFromStoredDoc, getStoredIdCardTemplateLean } from '@/lib/idCardTemplateFromDb';
+import { resolveTemplatePublicPath } from '@/lib/templateAssetPath';
 
 async function detectLargestWhiteRegion(templateBuffer) {
   const { data, info } = await sharp(templateBuffer)
@@ -118,17 +125,42 @@ export async function generateIdCardPng({
 
   const normalizedSettings = normalizeIdCardSettings(settings);
 
-  const templateBasename = path.basename(normalizedSettings.templateFile);
-  const extension = path.extname(templateBasename).toLowerCase();
   const allowedExts = new Set(['.png', '.jpg', '.jpeg', '.webp']);
-  if (!allowedExts.has(extension)) {
-    const err = new Error('Invalid template file type');
-    err.statusCode = 400;
-    throw err;
-  }
+  let templateBuffer;
+  let extension;
 
-  const templatePath = path.join(process.cwd(), 'public', templateBasename);
-  const templateBuffer = await readFile(templatePath);
+  if (isStoredIdCardTemplateFile(normalizedSettings.templateFile)) {
+    const profile = profileFromStoredTemplateFile(normalizedSettings.templateFile) || 'default';
+    const doc = await getStoredIdCardTemplateLean(profile);
+    templateBuffer = bufferFromStoredDoc(doc);
+    extension = extensionFromStoredDoc(doc);
+    if (!templateBuffer?.length || !allowedExts.has(extension)) {
+      const err = new Error(
+        'No template in database. Open Settings and upload the ID template again (required on your hosting provider).'
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+  } else {
+    const publicDir = path.join(process.cwd(), 'public');
+    const resolved = await resolveTemplatePublicPath(publicDir, normalizedSettings.templateFile);
+    if (!resolved) {
+      const err = new Error(
+        `Template not found: ${normalizedSettings.templateFile}. Upload again in Settings or check /public.`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+
+    extension = path.extname(resolved.rel).toLowerCase();
+    if (!allowedExts.has(extension)) {
+      const err = new Error('Invalid template file type');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    templateBuffer = await readFile(resolved.full);
+  }
   const templateMetadata = await sharp(templateBuffer).metadata();
   const templateWidth = templateMetadata.width;
   const templateHeight = templateMetadata.height;

@@ -158,6 +158,7 @@ export async function POST(req) {
           distribution = await distributeIdCard({
             registrationId,
             attendeeFallback: attendeePayload,
+            excelRowGuestType: attendeePayload.guestType,
           });
         } catch (e) {
           distribution = { success: false, message: e?.message || String(e) };

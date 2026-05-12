@@ -4,7 +4,8 @@ import IdCard from '@/models/IdCard';
 import { generateIdCardPng } from '@/lib/generateIdCardPng';
 import { sendGraphEmail } from '@/lib/graphEmail';
 import { sendMsg91WhatsAppTemplate } from '@/lib/msg91WhatsApp';
-import { DEFAULT_ID_CARD_SETTINGS } from '@/lib/idCardTemplateSettings';
+import { getProfileSettingsForDistribution } from '@/lib/idCardProfileSettingsServer';
+import { normalizeIdCardSettings, profileKeyFromGuestType } from '@/lib/idCardTemplateSettings';
 
 function buildPublicIdCardUrl(registrationId) {
   const base = process.env.PUBLIC_BASE_URL;
@@ -19,11 +20,13 @@ function buildPublicIdCardUrl(registrationId) {
 export async function distributeIdCard({
   registrationId,
   message = '',
-  settings = DEFAULT_ID_CARD_SETTINGS,
+  settings,
   placement,
   slotPercent,
   attendeeFallback = null,
   qrValue: qrValueOverride,
+  /** When set (Excel bulk only), pick guest vs VIP template. Omit for website registration flows. */
+  excelRowGuestType,
 }) {
   const regId = String(registrationId || '').trim();
   if (!regId) {
@@ -78,10 +81,28 @@ export async function distributeIdCard({
       : (qrValueFromOverride || qrValueFromFallback)
   );
 
+  let effectiveSettings;
+  if (settings && typeof settings === 'object') {
+    if (settings.default && settings.guest && settings.vip) {
+      effectiveSettings = normalizeIdCardSettings(settings.default);
+    } else {
+      effectiveSettings = normalizeIdCardSettings(settings);
+    }
+  } else if (
+    excelRowGuestType !== undefined &&
+    excelRowGuestType !== null &&
+    String(excelRowGuestType).trim() !== ''
+  ) {
+    const profile = profileKeyFromGuestType(excelRowGuestType);
+    effectiveSettings = await getProfileSettingsForDistribution(profile);
+  } else {
+    effectiveSettings = await getProfileSettingsForDistribution('default');
+  }
+
   const { buffer } = await generateIdCardPng({
     registrationId: effectiveAttendee.registrationId,
     qrValue,
-    settings,
+    settings: effectiveSettings,
     placement,
     slotPercent,
     allowAutoDetectWhiteRegion: false,

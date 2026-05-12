@@ -23,6 +23,7 @@ import {
   Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatAttendeeSquadDisplay } from '@/lib/formatAttendeeSquadDisplay';
 
 function fmtWhen(iso) {
   if (!iso) return '—';
@@ -40,7 +41,7 @@ function AttendeeDetails({ attendee }) {
   const ticketLabel = attendee.ticketNumber != null ? `#${attendee.ticketNumber}` : '—';
 
   const secondaryItems = [
-    { label: 'Squad', value: attendee.squad, icon: Users },
+    { label: 'Squad', value: formatAttendeeSquadDisplay(attendee), icon: Users },
     { label: 'Phone', value: attendee.phone, icon: Phone },
     { label: 'Ticket', value: ticketLabel, icon: Ticket },
     { label: 'Registered', value: fmtWhen(attendee.createdAt), icon: Calendar },

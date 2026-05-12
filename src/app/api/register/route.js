@@ -5,7 +5,15 @@ import Attendee from '@/models/Attendee';
 
 export async function POST(req) {
   try {
-    const data = await req.json();
+    const body = await req.json();
+    /** Only persist schema fields (ignore client extras / mock _id). */
+    const data = {
+      fullName: body?.fullName,
+      email: body?.email,
+      phone: body?.phone,
+      squad: body?.squad,
+      referredBy: body?.referredBy,
+    };
 
     try {
       await connectDB();

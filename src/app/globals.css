@@ -1707,10 +1707,16 @@ input:focus, select:focus {
     grid-template-columns: 1fr;
     gap: 2rem;
   }
-  
+
+  /* Preview first so it stays visible with the profile tabs without scrolling past the whole form. */
   .nx-settings-preview {
+    order: -1;
     position: static;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 1.5rem;
   }
 }
 

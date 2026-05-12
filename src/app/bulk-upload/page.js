@@ -9,7 +9,9 @@ import {
   DEFAULT_ID_CARD_SETTINGS,
   getScaledQrPlacement,
   ID_CARD_SETTINGS_KEY,
+  normalizeAllProfiles,
   normalizeIdCardSettings,
+  profileKeyFromGuestType,
 } from '@/lib/idCardTemplateSettings';
 
 export default function BulkUploadPage() {
@@ -22,17 +24,19 @@ export default function BulkUploadPage() {
 
   const accept = useMemo(() => '.xlsx,.xls,.csv', []);
 
-  const getLocalTemplateSettings = () => {
+  const getLocalProfileSettings = (guestType) => {
     try {
       const raw = window.localStorage.getItem(ID_CARD_SETTINGS_KEY);
       if (!raw) return DEFAULT_ID_CARD_SETTINGS;
-      return normalizeIdCardSettings(JSON.parse(raw));
+      const profiles = normalizeAllProfiles(JSON.parse(raw));
+      const k = profileKeyFromGuestType(guestType);
+      return profiles[k];
     } catch {
       return DEFAULT_ID_CARD_SETTINGS;
     }
   };
 
-  const downloadIdCardPng = async ({ registrationId, ticketNumber }) => {
+  const downloadIdCardPng = async ({ registrationId, ticketNumber, guestType }) => {
     const qrValue = String(ticketNumber != null ? ticketNumber : registrationId);
     if (!registrationId || !qrValue) return;
     const key = `${registrationId}-${qrValue}`;
@@ -40,7 +44,7 @@ export default function BulkUploadPage() {
 
     try {
       setDownloadingKey(key);
-      const settings = getLocalTemplateSettings();
+      const settings = normalizeIdCardSettings(getLocalProfileSettings(guestType));
       const placement = getScaledQrPlacement(settings, settings.templateWidth || 674, settings.templateHeight || 1024);
       const slotPercent = {
         leftPct: placement.qrX / (settings.templateWidth || 674),
@@ -242,7 +246,13 @@ export default function BulkUploadPage() {
                               <button
                                 type="button"
                                 className="nx-qr-download"
-                                onClick={() => downloadIdCardPng({ registrationId: r.registrationId, ticketNumber: r.ticketNumber })}
+                                onClick={() =>
+                                  downloadIdCardPng({
+                                    registrationId: r.registrationId,
+                                    ticketNumber: r.ticketNumber,
+                                    guestType: r.guestType,
+                                  })
+                                }
                                 disabled={downloadingKey === `${r.registrationId}-${String(r.ticketNumber)}`}
                                 title="Downloads the full template-based ID card PNG"
                               >

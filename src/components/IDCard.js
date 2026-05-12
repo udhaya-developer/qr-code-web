@@ -6,26 +6,17 @@ import { motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  DEFAULT_ID_CARD_SETTINGS,
+  getIdCardTemplateImageSrc,
   getQrSlotPercentStyle,
   getScaledQrPlacement,
-  ID_CARD_SETTINGS_KEY,
-  normalizeIdCardSettings,
 } from '@/lib/idCardTemplateSettings';
+import { useIdCardSettingsFromStorage } from '@/hooks/useIdCardSettingsFromStorage';
+import { formatAttendeeSquadDisplay } from '@/lib/formatAttendeeSquadDisplay';
 
 export default function IDCard({ attendee }) {
   const [downloading, setDownloading] = useState(false);
-  const [settings] = useState(() => {
-    try {
-      if (typeof window === 'undefined') return DEFAULT_ID_CARD_SETTINGS;
-      const raw = window.localStorage.getItem(ID_CARD_SETTINGS_KEY);
-      if (!raw) return DEFAULT_ID_CARD_SETTINGS;
-      const parsed = JSON.parse(raw);
-      return normalizeIdCardSettings(parsed);
-    } catch {
-      return DEFAULT_ID_CARD_SETTINGS;
-    }
-  });
+  const settings = useIdCardSettingsFromStorage();
+
   const [imageSize, setImageSize] = useState({ width: 674, height: 1024 });
 
   const qrSlotStyle = useMemo(
@@ -104,7 +95,7 @@ export default function IDCard({ attendee }) {
         id="printable-card"
       >
         <img
-          src={`/${settings.templateFile}`}
+          src={getIdCardTemplateImageSrc(settings.templateFile)}
           alt="MileZero ID template"
           className="id-template-image"
           onLoad={(event) => {
@@ -137,7 +128,8 @@ export default function IDCard({ attendee }) {
       </div>
       
       <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }}>
-        {attendee.fullName} · {attendee.squad} SQUAD · Ticket #{qrEncodeValue} · {attendee.registrationId}
+        {attendee.fullName} · {formatAttendeeSquadDisplay(attendee)} SQUAD · Ticket #{qrEncodeValue} ·{' '}
+        {attendee.registrationId}
       </p>
     </div>
   );

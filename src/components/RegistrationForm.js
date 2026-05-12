@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { ID_CARD_SETTINGS_KEY } from '@/lib/idCardTemplateSettings';
+import { getDefaultProfileSettingsFromStorageRaw, ID_CARD_SETTINGS_KEY } from '@/lib/idCardTemplateSettings';
 
 export default function RegistrationForm({ onRegistered }) {
   const [loading, setLoading] = useState(false);
@@ -60,7 +60,7 @@ export default function RegistrationForm({ onRegistered }) {
         let settings = undefined;
         try {
           const raw = window.localStorage.getItem(ID_CARD_SETTINGS_KEY);
-          if (raw) settings = JSON.parse(raw);
+          settings = getDefaultProfileSettingsFromStorageRaw(raw);
         } catch {
           // ignore localStorage parse failures
         }

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { DEFAULT_ID_CARD_SETTINGS } from '@/lib/idCardTemplateSettings';
 import { distributeIdCard } from '@/lib/distributeIdCard';
 
 export const runtime = 'nodejs';
@@ -13,7 +12,7 @@ export async function POST(req) {
     }
 
     const customMessage = typeof body.message === 'string' ? body.message : '';
-    const settings = body.settings || DEFAULT_ID_CARD_SETTINGS;
+    const settings = body.settings;
     const placement = body.placement;
     const slotPercent = body.slotPercent;
 
@@ -38,6 +37,7 @@ export async function POST(req) {
       slotPercent,
       attendeeFallback: fallbackFromBody,
       qrValue: body.qrValue,
+      excelRowGuestType: body.excelRowGuestType,
     });
 
     if (!out.success) {
